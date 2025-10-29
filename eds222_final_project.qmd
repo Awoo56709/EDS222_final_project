@@ -1,0 +1,15 @@
+---
+title: "eds222_final_project"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+```
+
+```{r}
+grape_data <- read.csv("GRAPE_QUALITY.csv")
+```
+
