@@ -7,9 +7,44 @@ editor: visual
 ```{r}
 library(tidyverse)
 library(janitor)
+library(ggplot2)
+set.seed(67)
 ```
 
 ```{r}
+# reading in data
 grape_data <- read.csv("GRAPE_QUALITY.csv")
+```
+```{r}
+str(grape_data)
+```
+```{r}
+which(is.na(grape_data))
+```
+```{r}
+summary(grape_data)
+```
+```{r}
+ggplot(grape_data, aes(rainfall_mm, quality_score, colour = quality_category)) +
+  geom_point()
+
+```
+```{r}
+ggplot(grape_data, aes(sun_exposure_hours, quality_score, colour = quality_category)) +
+  geom_point()
+```
+
+```{r}
+ggplot(grape_data, aes(quality_category)) +
+  geom_bar()
+```
+```{r}
+grape_data %>%
+  ggplot (aes(berry_size_mm)) +
+  geom_density(fill = "darkgreen")
+```
+```{r}
+  ggplot(grape_data, aes(x = quality_category, y = quality_score)) +
+  geom_boxplot()
 ```
 
