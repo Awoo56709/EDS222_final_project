@@ -16,24 +16,32 @@ set.seed(67)
 grape_data <- read.csv("GRAPE_QUALITY.csv")
 ```
 ```{r}
+# viewing a summary of the type of columns and values
 str(grape_data)
 ```
 ```{r}
+# checking for NAs
 which(is.na(grape_data))
 ```
 ```{r}
+# summarizing columns
 summary(grape_data)
 ```
 ```{r}
+# graphing and color coding the quality of grapes
 ggplot(grape_data, aes(rainfall_mm, quality_score, colour = quality_category)) +
   geom_point()
-
 ```
+## We can see that scores of quality of grapes are about a half point each. We can see visually that the quality of grapes MAY go down as rainfall is low of high.
+
+
 ```{r}
+# graphing the quality score against sun exposure
 ggplot(grape_data, aes(sun_exposure_hours, quality_score, colour = quality_category)) +
   geom_point()
 ```
-
+# The graph depicts the positive increasing relationship, however, interestingly enough it seems that for each type of grape, incrasing sun exposore have a decreasing effect of measured grapes. This leads to believe that there is a sweet spot for sun exposure. Applying an analysis similar to pesticide abundance might prove useful.
+## Another interesting plot would be related to the ribbon and CI of means of scores
 ```{r}
 ggplot(grape_data, aes(quality_category)) +
   geom_bar()
@@ -45,6 +53,10 @@ grape_data %>%
 ```
 ```{r}
   ggplot(grape_data, aes(x = quality_category, y = quality_score)) +
+  geom_boxplot()
+```
+```{r}
+ggplot(grape_data, aes(x = region, y = quality_score)) +
   geom_boxplot()
 ```
 
