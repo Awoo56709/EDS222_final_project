@@ -9,6 +9,7 @@ What is the response I'm interested in?
 
 10/28/25
 I am interested in knowing what environmental factors significantly effect the quality of wine production. (Tentative)
+11/12/25 We will change the response variable to BRIX as indicated by Max that that might be easier to analyze.
 
 What predictors are relevant?
 This includes sun exposure, % moisture in soil, % rainfall and region.
@@ -19,3 +20,5 @@ Data is pretty clean and has multiple variables that are numerical and categorci
 Currently, groupbys by score, wine type and region are generally a plausible stratification/cluster method.
 
 Create a GitHub repo for your final project and make a Quarto document that reads your data and creates 1-2 visualizations. At least one visualization should be a scatter plot showing the relationship between a predictor and response. Explain how your visualization is connected to your question for your final project.
+
+Create a DAG

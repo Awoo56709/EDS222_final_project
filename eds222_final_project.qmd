@@ -15,6 +15,7 @@ set.seed(67)
 # reading in data
 grape_data <- read.csv("GRAPE_QUALITY.csv")
 ```
+
 ```{r}
 # viewing a summary of the type of columns and values
 str(grape_data)
@@ -27,6 +28,22 @@ which(is.na(grape_data))
 # summarizing columns
 summary(grape_data)
 ```
+# Visualization
+
+```{r}
+# graphing and color coding the quality of grapes
+ggplot(grape_data, aes(rainfall_mm, sugar_content_brix, colour = quality_category)) +
+  geom_point()
+
+```
+```{r}
+# graphing and color coding the quality of grapes
+ggplot(grape_data, aes(sun_exposure_hours, sugar_content_brix, colour = quality_category)) +
+  geom_point()
+
+```
+
+
 ```{r}
 # graphing and color coding the quality of grapes
 ggplot(grape_data, aes(rainfall_mm, quality_score, colour = quality_category)) +
@@ -41,11 +58,17 @@ ggplot(grape_data, aes(sun_exposure_hours, quality_score, colour = quality_categ
   geom_point()
 ```
 # The graph depicts the positive increasing relationship, however, interestingly enough it seems that for each type of grape, incrasing sun exposore have a decreasing effect of measured grapes. This leads to believe that there is a sweet spot for sun exposure. Applying an analysis similar to pesticide abundance might prove useful.
-## Another interesting plot would be related to the ribbon and CI of means of scores
+## Interesting points
+  - plot would be related to the ribbon and CI of means of scores
+  - Based on the data, it seems that only high quality grapes tend to need 9+ hours of sun exposure
+  - For low quality grapes, the number of these grapes tend to decrease as 
+
 ```{r}
 ggplot(grape_data, aes(quality_category)) +
   geom_bar()
 ```
+# Based on this, we have a majority of grapes that are within the medium and high quality category. This may be due to just lack of data or a causal effect of variables 
+
 ```{r}
 grape_data %>%
   ggplot (aes(berry_size_mm)) +
@@ -55,6 +78,8 @@ grape_data %>%
   ggplot(grape_data, aes(x = quality_category, y = quality_score)) +
   geom_boxplot()
 ```
+## Based on this graph, we can see that 
+
 ```{r}
 ggplot(grape_data, aes(x = region, y = quality_score)) +
   geom_boxplot()
