@@ -1,0 +1,460 @@
+---
+title: "Grape Quality and Environmental Predictors"
+format: html
+editor: visual
+author: A
+date: 12/2/2025
+---
+
+# 1. Context and Research Question
+
+In viticulture, sugar content (Brix) is a key indicator of grape ripeness and quality.
+
+**Research Question:** *How does sun exposure, soil moisture, and other environmental and physiological factors influence Brix, and does soil moisture moderate the effect of sun exposure?*
+
+------------------------------------------------------------------------
+
+# 2. Data
+
+We use Kaggle data **Grape Quality** dataset which includes:
+
+-   quality_score (numeric)
+-   variety (categorical)
+-   region (categorical)
+-   sugar_content_brix (numeric; outcome for this analysis)
+-   acidity_ph (numeric)
+-   sun_exposure_hours (numeric)
+-   soil_moisture_percent (numeric)
+-   rainfall_mm (numeric)
+-   cluster_weight_g (numeric)
+-   berry_size_mm (numeric)
+-   harvest_date (date)
+
+# 3. DAG (Directed Acyclical Graph)
+
+Draw a DAG explaining the relationships between the variables.
+
+region → sun_exposure_hours → sugar_content_brix region → rainfall_mm → soil_moisture_percent → sugar_content_brix variety → sugar_content_brix variety → acidity_ph → sugar_content_brix harvest_date → sugar_content_brix cluster_weight_g → sugar_content_brix berry_size_mm → sugar_content_brix
+
+-   Confounds: region, variety
+-   Mediators: soil_moisture_percent (between rainfall and Brix), harvest_date (ripening progression)
+-   Collider caution: variables influenced by both variety and environment (e.g., berry_size_mm) can behave as colliders; avoid conditioning unless justified by the DAG
+
+# 4. Statistical Model
+
+We will use a Gamma regression because °Brix is a positive continuous variable and may be right-skewed.
+
+Moreover, for this analysis, we assume the observations are independent of the explanatory variables and the response.
+
+-   Response family: Gamma
+-   Link function: log
+
+Model notation:
+
+$$ Y_i \sim \text{Gamma}(\mu\_i, \kappa)
+
+= \log(\mu\_i) = \beta\_0 + \beta\_1 \cdot \text{Sun}\_i + \beta\_2 \cdot \text{Moisture}\_i + \beta\_3 \cdot (\text{Sun}\_i \times \text{Moisture}\_i) + \beta\_4 \cdot \text{Rainfall}\_i + \beta\_5 \cdot \text{pH}\_i + \beta\_6 \cdot \text{HarvestDate}\_i + \beta\_7 \cdot \text{ClusterWeight}\_i + \beta\_8 \cdot \text{BerrySize}\_i + \boldsymbol{\beta_9}\^\top \mathbf{Variety}\_i + \boldsymbol{\beta_{10}}\^\top \mathbf{Region}\_i
+
+$$
+
+Notes: Include variety and region as categorical adjustment terms based on the DAG (confounders).
+
+------------------------------------------------------------------------
+
+# 5. Hypotheses
+
+-   Scientific hypothesis: After adjusting for variety and region, greater sun exposure increases °Brix and higher soil moisture decreases °Brix.
+-   Null: No association between sun exposure or soil moisture and °Brix after adjustment.
+-   Alternative: Sun exposure increases °Brix; soil moisture decreases °Brix, controlling for variety and region.
+-   Additional: Later harvest dates are associated with higher °Brix.
+
+Statistical hypotheses:
+
+-   Sun exposure effect:
+
+$$
+
+H_0:\beta\_{1}=0 \quad \text{vs} \quad H_a:\beta{1} \>0
+
+$$
+
+-   Soil moisture effect:
+
+$$ 
+H_0:\beta_{2}=0 \quad \text{vs} \quad H_a:beta{2} <0
+$$
+
+-   Interaction (Sun × Soil Moisture): \$\$
+
+H_0:\beta*{3}=0\* \quad \text{vs} \quad H_A:\beta{3}\neq 0
+
+\$\$
+
+Predictors: sun_exposure_hours, soil_moisture_percent, rainfall_mm, acidity_ph, harvest_date, cluster_weight_g, berry_size_mm\
+Adjusted for: variety, region\
+Key interaction: sun_exposure_hours × soil_moisture_percent
+
+Predictors: - sun_exposure_hours - soil_moisture_percent - rainfall_mm - acidity_ph - harvest_date - cluster_weight_g - berry_size_mm
+
+Adjusted for: - variety - region
+
+Interaction: sun_exposure_hours x soil_moisture\_%
+
+# 6. Workflow
+
+1.  Data Cleaning\
+2.  Exploratory Analysis: Visualizations\
+3.  Model Fitting: Gamma Regression\
+4.  Diagnostic Tests: Predicted vs observed plots and residual checks\
+5.  Inference: Interpret the coefficients with confidence intervals\
+6.  Blog post: Present results in Quarto with narrative and figures
+
+------------------------------------------------------------------------
+
+## Preparation and Data Cleaning
+
+```{r}
+# Import libraries
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(broom)
+set.seed(123)
+```
+
+# Data Simulation
+
+```{r}
+# Using assumptions about viticulture, we will create coefficients based on suspected effects. Sugar accumulation I believe is multiplicative rather than additive
+n_sample <- 1000
+
+# Define coefficients (true values for the simulation)
+# Assumptions - sugar acculation is multiplicative based on a Gamma regression with a log link
+
+beta_0 <- 2.7
+beta_sun <- .015
+beta_moisture <- -0.01
+beta_interaction <- -.0005
+beta_rainfall <- .0003
+beta_ph <- .02
+beta_weight <- .0001
+beta_size <- - .002
+
+# Control variance in Gamma distribution (higher will result in less spread)
+shape_param <- 50
+
+```
+
+# Generate Predictor
+
+```{r}
+# Simulate predictor variable with realistic ranges based on data
+
+sim_data <- tibble(
+  #continuous predictors, based on realistic ranges
+  sun_exp_hours = runif(n_sample, 6, 12), #hours we assume of sun 6 - 12
+  soil_moisture_perc = runif(n_sample, 15, 35), #15-35% moisture
+  rainfall_mm = runif(n_sample, 200, 600), #200 - 600 mm rain
+  acidity_ph = rnorm(n_sample, 3.3, .2), # ph around 3.3
+  cluster_weight_g = rnorm(n_sample, 150, 30), # average 150g
+  berry_size_mm = rnorm(n_sample, 15,2), # average 15mm
+
+# Categorical predictors
+  variety = sample(c("Chardonnay", "Cabernet","Merlot"), n_sample, replace = TRUE),
+  region = sample(c("Central Coast","Napa", "Sonoma"), n_sample, replace = TRUE)
+)
+```
+
+```{r}
+head(sim_data)
+```
+
+# Calculating the response variable (Brix)
+
+```{r}
+# Based on our model above and defined betas
+
+# Linear predictor
+lin_predict <- beta_0 + 
+  beta_sun * sim_data$sun_exp_hours + 
+  beta_moisture * sim_data$soil_moisture_perc +
+  beta_interaction * (sim_data$sun_exp_hours * sim_data$soil_moisture_perc) +
+  beta_rainfall  * sim_data$rainfall_mm +
+  beta_ph * sim_data$acidity_ph +
+  beta_weight * sim_data$cluster_weight_g +
+  beta_size * sim_data$berry_size_mm
+
+# Converting to mean response of brix units by transformation from log to natural scale
+mu <- exp(lin_predict)
+
+
+# Add variation (scatter) around mean to our gamma model
+sim_data$sugar_content_brix <- rgamma(n_sample,
+                                      shape = shape_param,
+                                      rate = shape_param / mu)
+
+```
+
+# Fit the model to the simulated data
+
+```{r}
+# Fit gamma regression with log link
+model_sim <- glm(
+  sugar_content_brix ~ sun_exp_hours * soil_moisture_perc + 
+    rainfall_mm + acidity_ph + cluster_weight_g + berry_size_mm +
+    variety + region,
+  family = Gamma(link = "log"),
+  data = sim_data
+)
+
+```
+
+# Recover Parameters for Model Success
+
+```{r}
+# Retrieve estimate coefficients
+estimated = c(coef(model_sim)[1:4], 
+                coef(model_sim)["rainfall_mm"],
+                coef(model_sim)["acidity_ph"],
+                coef(model_sim)["cluster_weight_g"],
+                coef(model_sim)["berry_size_mm"])
+
+estimated
+```
+
+
+```{r}
+
+true_values = c(beta_0, beta_sun, beta_moisture, beta_interaction,
+                beta_rainfall, beta_ph, beta_weight, beta_size)
+true_values
+```
+The values are close, but not exact. This tells us that the model is accurate.
+
+# Fitting Real Data
+
+```{r}
+
+grapes <- read.csv("GRAPE_QUALITY.csv") %>%
+  janitor::clean_names() %>%
+  # Create another date time column for possible analysis related to date of harvest
+  mutate(harvest_date = as.Date(harvest_date),
+         days_since_start = as.numeric(harvest_date - min(harvest_date)))
+
+summary(grapes$sugar_content_brix)
+
+```
+
+```{r}
+# Checking for correlation
+
+predictors <- grapes |> 
+  select(sun_exposure_hours, soil_moisture_percent, rainfall_mm,
+         acidity_ph, cluster_weight_g, berry_size_mm)
+
+
+corr_matrix <- cor(predictors, use = "complete.obs")
+print(round(corr_matrix, 3))
+
+```
+Based on the correlation matrix, all correlations are very close to 0, meaning they are largely independent of each other and multicollinearity is not causing non-significant results.
+
+However the few variables that had a stronger correlation:
+Sun exposure and soil moisture are 
+sun_exposure_hours & berry_size_mm: r = -0.056
+  rainfall_mm & acidity_ph: r = -0.047
+  cluster_weight_g & berry_size_mm: r = -0.045
+
+
+# Fit My Model
+
+```{r}
+model <- glm(
+  sugar_content_brix ~ sun_exposure_hours * soil_moisture_percent + 
+    rainfall_mm + acidity_ph + cluster_weight_g + berry_size_mm + 
+    variety + region,
+  family = Gamma(link = "log"),
+  data = grapes
+)
+```
+
+
+```{r}
+# Tidy results
+results <- tidy(model, conf.int = TRUE)
+
+# Focusing on the main predictors
+main_predictors <- results %>%
+  filter(term %in% c("sun_exposure_hours", "soil_moisture_percent",
+                     "rainfall_mm", "acidity_ph", "cluster_weight_g",
+                     "berry_size_mm", "sun_exposure_hours:soil_moisture_percent"))
+# Print clean table
+print(main_predictors %>% 
+        select(term, estimate, std.error, p.value) %>%
+        mutate(across(where(is.numeric), ~round(., 5))))
+
+```
+All the p-values are not significant. Further analysis is needed.
+
+# Diagnosis Non-Significance
+
+```{r}
+# Check for variability in sun exposure and soil moisture
+variation_check <- grapes %>%
+  summarise(
+    sun_min = min(sun_exposure_hours),
+    sun_max = max(sun_exposure_hours),
+    sun_range = sun_max - sun_min,
+    sun_sd = sd(sun_exposure_hours),
+    moisture_min = min(soil_moisture_percent),
+    moisture_max = max(soil_moisture_percent),
+    moisture_range = moisture_max - moisture_min,
+    moisture_sd = sd(soil_moisture_percent)
+  )
+
+print(variation_check)
+```
+Based on the range, the grapes get about 2 standard deviation of sun exposure, which is a good amount of variation.
+For moisture,  the stadard deviation 11.5% which denotes a good amount of variation as well. 
+
+This tells us these predictors are suffiecient for analysis.
+
+If there is no effect from these predictors, then its due to some other variables.
+
+
+```{r}
+# Fit a simpler model with fewer predictors
+
+model_simple <- glm(
+  sugar_content_brix ~ sun_exposure_hours * soil_moisture_percent + 
+    variety + region,
+  family = Gamma(link = "log"),
+  data = grapes
+)
+# Tidy results
+results_simple <- tidy(model_simple, conf.int = TRUE) %>%
+  filter(term %in% c("sun_exposure_hours", "soil_moisture_percent",
+                     "sun_exposure_hours:soil_moisture_percent"))
+
+print(results_simple %>% 
+        select(term, estimate, p.value) %>%
+        mutate(across(where(is.numeric), ~round(., 5))))
+
+```
+Based on the p value > .05, nothing is significant and the effects may be very small or not present.
+
+# Check the model fit
+
+```{r}
+# Add predictions and residuals
+grapes <- grapes %>%
+  mutate(predicted_brix = predict(model_simple, type = "response"),
+         residuals = sugar_content_brix - predicted_brix)
+
+# Plot predicted vs observed
+plot(grapes$predicted_brix, grapes$sugar_content_brix,
+     xlab = "Predicted Brix", ylab = "Observed Brix",
+     main = "Model Fit Check",
+     pch = 16, col = rgb(.5, 0.3, 0, 0.5))
+abline(0, 1, col = "red", lwd = 1, lty = 1)  # Perfect prediction line
+abline(lm(sugar_content_brix ~ predicted_brix, data = grapes), 
+       col = "blue", lwd = 1)  # Actual fit line
+
+legend("topleft", 
+       c("Perfect fit", "Actual fit"), 
+       col = c("red", "blue"), lty = c(2, 1), lwd = 2)
+```
+
+
+```{r}
+# Checking the fit
+correlation <- cor(grapes$predicted_brix, grapes$sugar_content_brix)
+
+r_squared <- correlation^2
+r_squared
+```
+```{r}
+r_interp <- r_squared *100
+r_interp
+```
+
+The R^2 value can be calculated from squaring the correlation statistic equally .013. Multiplying that by 100, we get a percentage that indicates only 1.3% of the variation in Brix is explained by the model. Because this is so low, this suggests that:
+- The predictors have minimal effect on Brix
+- There are confounding variables not accounted for
+- Error in measurement
+
+
+## Residual Plot
+
+```{r}
+# Plotting residual plot
+plot(grapes$predicted_brix, grapes$residuals,
+     xlab = "Predicted Brix", ylab = "Residuals",
+     main = "Residual Plot - Check for Patterns",
+     pch = 16, col = rgb(0, 0, 0.5, 0.3))
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+```
+The residuals show random scatter around zero but with no apparent pattern. This suggests the Gamma model with a log link is appropriate. However, the wide range of scatter indicates the model explains very little variation.
+
+# Testing Hypotheses
+
+```{r}
+# Recall results for comparison
+results <- tidy(model_simple, conf.int = TRUE)
+results
+```
+
+
+```{r}
+# Testing the sun_exposure hypothesis
+
+sun_hyp <- results %>% filter(term == "sun_exposure_hours")
+
+# Checking the p-
+sun_check <- tibble(
+  Term        = sun_hyp$term,
+  Estimate    = sun_hyp$estimate,
+  Std_Error   = sun_hyp$std.error,
+  P_Value     = sun_hyp$p.value,
+  CI_Low      = sun_hyp$conf.low,
+  CI_High     = sun_hyp$conf.high,
+  Pct_Change  = (exp(sun_hyp$estimate) - 1) * 100
+)
+
+# Print the table
+sun_check
+
+```
+
+
+Based on the large p-value > .05, there is no evidence that sun_exposure affects Brix in this dataset
+The confidence interval includes zero, which means the true effect could be positive, negative, or none at all.
+
+
+```{r}
+
+
+# Testing the soil_moisture decreasing hypothesis
+
+soil_moisture_hyp <- results %>% filter(term == "soil_moisture_percent")
+
+# Checking the p-
+soil_moisture_check <- tibble(
+  Term        = soil_moisture_hyp$term,
+  Estimate    = soil_moisture_hyp$estimate,
+  Std_Error   = soil_moisture_hyp$std.error,
+  P_Value     = soil_moisture_hyp$p.value,
+  CI_Low      = soil_moisture_hyp$conf.low,
+  CI_High     = soil_moisture_hyp$conf.high,
+  Pct_Change  = (exp(soil_moisture_hyp$estimate) - 1) * 100
+)
+
+# Print the table
+soil_moisture_check
+```
+Based on the large p-value, there is no evidence that soil_moisture_percentage affects Brix in this dataset
+The confidence interval includes zero, which means the true effect could be positive, negative, or none at all.
+
