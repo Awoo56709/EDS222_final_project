@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.335">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Joshua Ferrer-Lozano">
+<meta name="dcterms.date" content="2025-12-01">
+
+<title>EDS 222 Final Project: Grape Quality and Environmental Predictors</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="README_files/libs/clipboard/clipboard.min.js"></script>
+<script src="README_files/libs/quarto-html/quarto.js"></script>
+<script src="README_files/libs/quarto-html/popper.min.js"></script>
+<script src="README_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="README_files/libs/quarto-html/anchor.min.js"></script>
+<link href="README_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="README_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="README_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="README_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="README_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">EDS 222 Final Project: Grape Quality and Environmental Predictors</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Joshua Ferrer-Lozano </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">December 1, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p>This repository contains the code and documentation for my EDS 222 final project.<br>
+The project explores how environmental and physiological factors influence sugar content (°Brix) in grapes, using a <strong>Gamma regression model</strong>.<br>
+The work is presented as a technical blog post built with Quarto.</p>
+<p><strong>Main Research Question:</strong> <em>How does sun exposure, soil moisture, and other environmental and physiological factors influence Brix, and does soil moisture moderate the effect of sun exposure?</em></p>
+<p>Other Possible Questions to Investigate:</p>
+<ul>
+<li>Confounding: Does irrigation or canopy management vary by region/variety enough to require additional adjustment?<br>
+</li>
+<li>Interaction interpretability: Is the sun × soil moisture interaction stable across varieties, or should I allow it to vary (three-way interaction or stratification)?<br>
+</li>
+<li>Nonlinearity: Do sun exposure or soil moisture show nonlinear relationships with °Brix?<br>
+</li>
+<li>Collinearity: How correlated are rainfall and soil moisture, and does including both degrade estimates?<br>
+</li>
+<li>Temporal pathway: Should harvest date be treated as a mediator (ripening progression) or a direct predictor?</li>
+</ul>
+</section>
+<section id="data" class="level2">
+<h2 class="anchored" data-anchor-id="data">Data</h2>
+<p>The data I will utilize will be <a href="https://www.kaggle.com/datasets/mrmars1010/grape-quality">Grape Quality</a> data sourced from Kaggle with a usability score of 10/10.</p>
+<p>This dataset records various temporal, categorical, and numerical variables related to grape development, including environmental conditions and physiological grape traits.</p>
+</section>
+<section id="key-variables" class="level2">
+<h2 class="anchored" data-anchor-id="key-variables">Key Variables:</h2>
+<section id="predictors" class="level3">
+<h3 class="anchored" data-anchor-id="predictors">Predictors</h3>
+<ul>
+<li><code>variety</code>: categorical predictor (grape type)<br>
+</li>
+<li><code>region</code>: categorical predictor/stratifier<br>
+</li>
+<li><code>acidity_ph</code>: numeric predictor (acidity level)<br>
+</li>
+<li><code>sun_exposure_hours</code>: numeric predictor (environmental factor)<br>
+</li>
+<li><code>soil_moisture_percent</code>: numeric predictor (environmental factor)<br>
+</li>
+<li><code>rainfall_mm</code>: numeric predictor (environmental factor)<br>
+</li>
+<li><code>cluster_weight_g</code>: numeric predictor (physiological trait)<br>
+</li>
+<li><code>berry_size_mm</code>: numeric predictor (physiological trait)<br>
+</li>
+<li><code>harvest_date</code>: temporal predictor (seasonal effect)</li>
+</ul>
+</section>
+<section id="response" class="level3">
+<h3 class="anchored" data-anchor-id="response">Response</h3>
+<ul>
+<li><code>sugar_content_brix</code>: numeric outcome (positive continuous, sugar concentration)</li>
+</ul>
+</section>
+<section id="potential-confounders" class="level3">
+<h3 class="anchored" data-anchor-id="potential-confounders">Potential Confounders</h3>
+<ul>
+<li>Region<br>
+</li>
+<li>Variety</li>
+</ul>
+</section>
+</section>
+<section id="hypotheses" class="level2">
+<h2 class="anchored" data-anchor-id="hypotheses">Hypotheses</h2>
+<ul>
+<li><strong>Scientific Hypothesis:</strong> After adjusting for variety and region, greater sun exposure and lower soil moisture are associated with higher sugar content (Brix).<br>
+</li>
+<li><strong>Null Hypothesis:</strong> There is no association between sun exposure or soil moisture and Brix after adjustment.<br>
+</li>
+<li><strong>Alternative Hypothesis:</strong> More sun exposure increases Brix and higher soil moisture decreases Brix, controlling for variety and region.<br>
+</li>
+<li><strong>Additional Hypothesis:</strong> Later harvest dates will be associated with higher Brix.</li>
+</ul>
+</section>
+<section id="dag" class="level2">
+<h2 class="anchored" data-anchor-id="dag">DAG</h2>
+<p>region → sun_exposure_hours → sugar_content_brix → quality_score region → rainfall_mm → soil_moisture_percent → sugar_content_brix variety → sugar_content_brix variety → acidity_ph → quality_score → sugar_content_brix acidity_ph → quality_score cluster_weight_g → sugar_content_brix berry_size_mm → quality_score harvest_date → sugar_content_brix</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="DAG.jpg" class="img-fluid figure-img"></p>
+<p></p><figcaption class="figure-caption">DAG</figcaption><p></p>
+</figure>
+</div>
+<p>Confounding: ‘region’, ‘variety’ Collider: ‘berry_size’, ‘cluster_weight’,‘acidity_ph’ Mediator: ‘sun_mediator’,‘harvest_date’</p>
+</section>
+<section id="statistical-model" class="level2">
+<h2 class="anchored" data-anchor-id="statistical-model">Statistical Model</h2>
+<p>We will use a <strong>Gamma Regression</strong> because Briz is a positove continuous variable and may be skewed.</p>
+<p><strong>Model family:</strong> Gamma<br>
+<strong>Link function:</strong> Log (canonical link)</p>
+<p>[ Y_i (_i, ) ]</p>
+<p>[ (_i) = _0 + _1 _i + _2 _i + _3 (_i _i) + _4 _i + _5 _i + _6 _i + _7 _i + _8 _i + ^_i + ^_i ]</p>
+</section>
+<section id="statistical-hypotheses" class="level2">
+<h2 class="anchored" data-anchor-id="statistical-hypotheses">Statistical Hypotheses</h2>
+<p>Hypotheses Statistical Notation:</p>
+<p>Test whether sun exposure increases Brix after adjustment H0: B_Sun = 0 vs H1: B_Sun &gt; 0</p>
+<p>Test whether soil_moisture_% decreases Brix H0: B_Moisture = 0 vs H1: B_Moisture &lt; 0</p>
+</section>
+<section id="statistical-hypotheses-1" class="level2">
+<h2 class="anchored" data-anchor-id="statistical-hypotheses-1">Statistical Hypotheses</h2>
+<ul>
+<li><strong>Sun exposure effect:</strong>
+<ul>
+<li>(H_0:&nbsp;_{1}=0)<br>
+</li>
+<li>(H_A:&nbsp;_{1}&gt;0)</li>
+</ul></li>
+<li><strong>Soil moisture effect:</strong>
+<ul>
+<li>(H_0:&nbsp;_{2}=0)<br>
+</li>
+<li>(H_A:&nbsp;_{2}&lt;0)</li>
+</ul></li>
+<li><strong>Interaction effect (Sun × Soil Moisture):</strong>
+<ul>
+<li>(H_0:&nbsp;_{3}=0)<br>
+</li>
+<li>(H_A:&nbsp;_{3})</li>
+</ul></li>
+</ul>
+</section>
+<section id="potential-workflow" class="level2">
+<h2 class="anchored" data-anchor-id="potential-workflow">Potential Workflow</h2>
+<ol type="1">
+<li>Data Cleaning<br>
+</li>
+<li>Exploratory Analysis: Visualizations<br>
+</li>
+<li>Model Fitting: Gamma Regression<br>
+</li>
+<li>Diagnostic Tests: Predicted vs observed plots and residual checks<br>
+</li>
+<li>Inference: Interpret the coefficients with confidence intervals<br>
+</li>
+<li>Blog post: Present results in Quarto with narrative and figures</li>
+</ol>
+</section>
+<section id="questions-raised" class="level2">
+<h2 class="anchored" data-anchor-id="questions-raised">Questions Raised</h2>
+<ul>
+<li>Are rainfall and soil moisture too collinear to include together?<br>
+</li>
+<li>Should harvest date be treated as a mediator (ripening progression) or a direct predictor?<br>
+</li>
+<li>Is the sun × soil moisture interaction consistent across grape varieties, or should stratification be considered?<br>
+</li>
+<li>Do nonlinear effects (splines or polynomials) better capture sun exposure or soil moisture relationships?</li>
+</ul>
+</section>
+<section id="old-info" class="level2">
+<h2 class="anchored" data-anchor-id="old-info">Old info</h2>
+</section>
+<section id="which-statistical-model-do-you-propose-to-use-refer-to-the-descriptions-on-the-course-website.-how-does-your-response-variable-from-above-fit-with-the-response-characteristics-of-the-statistical-model-if-the-data-need-to-be-transformed-how-would-you-do-that" class="level2">
+<h2 class="anchored" data-anchor-id="which-statistical-model-do-you-propose-to-use-refer-to-the-descriptions-on-the-course-website.-how-does-your-response-variable-from-above-fit-with-the-response-characteristics-of-the-statistical-model-if-the-data-need-to-be-transformed-how-would-you-do-that">Which statistical model do you propose to use? Refer to the descriptions on the course website. How does your response variable from above fit with the response characteristics of the statistical model? If the data need to be transformed, how would you do that? *</h2>
+<p>The model I will be using for my analysis will be the Beta Regression model. Because of the variability of the Brix scores, scaling these scores between 0 and 1 will be the first priority.</p>
+<p>We considered both beta regression (after rescaling °Brix to (0,1)) and gamma regression (on the raw scale). Beta regression aligns with the course’s emphasis on bounded outcomes, while gamma regression may be more natural for concentration data. In either case, we adjust for region and variety as confounders, and explore stratification to assess differences across groups.</p>
+<p>Family: Beta Link function: Logit</p>
+<p>Statistical Model:</p>
+<p>Y_i ~ Beta(mu,phi,(1 - mu_i)phi)</p>
+<p>logit(u_i) = Beta_0 + Beta_1 * Sun_i + Beta_2 * Moisture_i + Beta_3 * (Sun_i + Moisture_i) + Beta_4 * Rainfall_i + Beta_5 * ph_i Beta_6 * HarvestDate + Beta_7 * ClusterWeight_i + Beta_8 * Berry_Size + Variety_i + Region_i</p>
+</section>
+<section id="how-i-need-to-aggregate-or-otherwise-process-my-data" class="level2">
+<h2 class="anchored" data-anchor-id="how-i-need-to-aggregate-or-otherwise-process-my-data">How I need to aggregate or otherwise process my data?</h2>
+<p>Data is pretty clean and has multiple variables that are numerical and categorcial. Its all about the framing of the project.</p>
+</section>
+<section id="methodology" class="level2">
+<h2 class="anchored" data-anchor-id="methodology">Methodology</h2>
+<p>Currently, groupbys by score, wine type and region are generally a plausible stratification/cluster method.</p>
+<p>Adjusted for: - variety - region</p>
+<p><strong>Interaction</strong>: sun_exposure_hours x soil_moisture_%</p>
+<p>Hypotheses Statistical Notation:</p>
+<p>Test whether sun exposure increases Brix after adjustment H0: B_Sun = 0 vs H1: B_Sun &gt; 0</p>
+<p>Test whether soil_moisture_% decreases Brix H0: B_Moisture = 0 vs H1: B_Moisture &lt; 0</p>
+</section>
+<section id="describe-the-dataset-youre-proposing-to-use.-what-is-it-where-did-you-find-it-what-does-each-observation-represent-if-youre-combining-multiple-datasets-how-will-you-connect-them" class="level2">
+<h2 class="anchored" data-anchor-id="describe-the-dataset-youre-proposing-to-use.-what-is-it-where-did-you-find-it-what-does-each-observation-represent-if-youre-combining-multiple-datasets-how-will-you-connect-them">Describe the dataset you’re proposing to use. What is it? Where did you find it? What does each observation represent? If you’re combining multiple datasets, how will you connect them? *</h2>
+</section>
+<section id="what-is-the-question-youre-going-to-investigate-what-predictor-and-response-variables-will-be-relevant" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-the-question-youre-going-to-investigate-what-predictor-and-response-variables-will-be-relevant">What is the question you’re going to investigate? What predictor and response variables will be relevant?</h2>
+<p>In viticulture, sugar content (Brix) is a key indicator of grape ripeness and quality.</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

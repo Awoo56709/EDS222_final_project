@@ -34,6 +34,26 @@ We use Kaggle data **Grape Quality** dataset which includes:
 
 Draw a DAG explaining the relationships between the variables.
 
+```{r}
+
+library(dagitty)
+
+# Example DAG
+dag <- dagitty("
+dag {
+  Sun -> Brix
+  Moisture -> Brix
+  Sun -> Moisture
+  Rainfall -> Moisture
+  HarvestDate -> Brix
+  Variety -> Brix
+  Region -> Brix
+}
+")
+plot(dag)
+```
+
+
 region → sun_exposure_hours → sugar_content_brix region → rainfall_mm → soil_moisture_percent → sugar_content_brix variety → sugar_content_brix variety → acidity_ph → sugar_content_brix harvest_date → sugar_content_brix cluster_weight_g → sugar_content_brix berry_size_mm → sugar_content_brix
 
 -   Confounds: region, variety
@@ -84,11 +104,11 @@ $$
 H_0:\beta_{2}=0 \quad \text{vs} \quad H_a:beta{2} <0
 $$
 
--   Interaction (Sun × Soil Moisture): \$\$
+-   Interaction (Sun × Soil Moisture): $$
 
-H_0:\beta*{3}=0\* \quad \text{vs} \quad H_A:\beta{3}\neq 0
+H_0:\beta{3}=0 \quad \text{vs} \quad H_A:\beta{3}\neq 0
 
-\$\$
+$$
 
 Predictors: sun_exposure_hours, soil_moisture_percent, rainfall_mm, acidity_ph, harvest_date, cluster_weight_g, berry_size_mm\
 Adjusted for: variety, region\
@@ -102,11 +122,11 @@ Interaction: sun_exposure_hours x soil_moisture\_%
 
 # 6. Workflow
 
-1.  Data Cleaning\
-2.  Exploratory Analysis: Visualizations\
-3.  Model Fitting: Gamma Regression\
-4.  Diagnostic Tests: Predicted vs observed plots and residual checks\
-5.  Inference: Interpret the coefficients with confidence intervals\
+1.  Data Cleaning
+2.  Exploratory Analysis: Visualizations
+3.  Model Fitting: Gamma Regression
+4.  Diagnostic Tests: Predicted vs observed plots and residual checks
+5.  Inference: Interpret the coefficients with confidence intervals
 6.  Blog post: Present results in Quarto with narrative and figures
 
 ------------------------------------------------------------------------
@@ -120,14 +140,16 @@ library(lubridate)
 library(janitor)
 library(ggplot2)
 library(dplyr)
-library(gridExtra)
-library(broom)
 set.seed(123)
 ```
 
-# Data Simulation
+
 
 ```{r}
+
+#| code-fold: false
+#----------------- Data Simulation ------------------------
+
 # Using assumptions about viticulture, we will create coefficients based on suspected effects. Sugar accumulation I believe is multiplicative rather than additive
 n_sample <- 1000
 
@@ -234,12 +256,74 @@ true_values
 ```
 The values are close, but not exact. This tells us that the model is accurate.
 
+# Data Exploration
+
+```{r}
+# viewing a summary of the type of columns and values
+str(grapes)
+```
+```{r}
+# summarizing columns
+summary(grapes)
+```
+```{r}
+# Scatter plots to view our predictors of interest
+ggplot(grapes, aes(x = sun_exposure_hours, y = sugar_content_brix, color = region)) +
+  geom_point(alpha = .8) +
+  geom_smooth(method = "ls", se = FALSE) +
+  facet_wrap(~ region) +
+  labs(title = "Sun Exposure vs Brix by Region",
+       x = "Sun Exposure (hours)", y = "Sugar Content (Brix)")
+```
+
+
+```{r}
+# graphing and color coding the quality of grapes
+ggplot(grapes, aes(sun_exposure_hours, sugar_content_brix, colour = quality_category)) +
+  geom_point()
+```
+
+```{r}
+  ggplot(grapes, aes(x = quality_category, y =sugar_content_brix)) +
+  geom_boxplot()
+```
+```{r}
+# This plot will provide scores by weekly breaks, not that July and October is included but no dates are present in data set
+ggplot(grapes, aes(x = harvest_date, y = sugar_content_brix, color = quality_score)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "loess", se = FALSE, color = "black") +
+  facet_wrap(~ variety) +
+  scale_color_viridis_c(option = "plasma") +
+  scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
+  labs(title = "Brix vs Harvest Date by Variety",
+       x = "Harvest Date", y = "Sugar Content (°Brix)",
+       color = "Quality Score") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+# Plot the graph based on only type of grape and a specified region
+
+ggplot(grapes, aes(x = harvest_date, y = sugar_content_brix, color = quality_score)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "loess", se = FALSE, color = "black") +
+  facet_wrap(~ region) +
+  scale_color_viridis_c(option = "plasma") +
+  scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
+  labs(title = "Brix vs Harvest Date by region",
+       x = "Harvest Date", y = "Sugar Content (°Brix)",
+       color = "Quality Score") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+```  
+
+
 # Fitting Real Data
 
 ```{r}
 
-grapes <- read.csv("GRAPE_QUALITY.csv") %>%
-  janitor::clean_names() %>%
+grapes <- read.csv("GRAPE_QUALITY.csv") |> 
+  clean_names() |> 
   # Create another date time column for possible analysis related to date of harvest
   mutate(harvest_date = as.Date(harvest_date),
          days_since_start = as.numeric(harvest_date - min(harvest_date)))
@@ -297,6 +381,7 @@ print(main_predictors %>%
         mutate(across(where(is.numeric), ~round(., 5))))
 
 ```
+
 All the p-values are not significant. Further analysis is needed.
 
 # Diagnosis Non-Significance
@@ -354,18 +439,11 @@ grapes <- grapes %>%
   mutate(predicted_brix = predict(model_simple, type = "response"),
          residuals = sugar_content_brix - predicted_brix)
 
-# Plot predicted vs observed
-plot(grapes$predicted_brix, grapes$sugar_content_brix,
-     xlab = "Predicted Brix", ylab = "Observed Brix",
-     main = "Model Fit Check",
-     pch = 16, col = rgb(.5, 0.3, 0, 0.5))
-abline(0, 1, col = "red", lwd = 1, lty = 1)  # Perfect prediction line
-abline(lm(sugar_content_brix ~ predicted_brix, data = grapes), 
-       col = "blue", lwd = 1)  # Actual fit line
+ggplot(grapes, aes(x = predicted_brix, y = sugar_content_brix)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  labs(x = "Predicted Brix", y = "Observed Brix", title = "Model Fit Check")
 
-legend("topleft", 
-       c("Perfect fit", "Actual fit"), 
-       col = c("red", "blue"), lty = c(2, 1), lwd = 2)
 ```
 
 
@@ -390,12 +468,12 @@ The R^2 value can be calculated from squaring the correlation statistic equally 
 ## Residual Plot
 
 ```{r}
-# Plotting residual plot
-plot(grapes$predicted_brix, grapes$residuals,
-     xlab = "Predicted Brix", ylab = "Residuals",
-     main = "Residual Plot - Check for Patterns",
-     pch = 16, col = rgb(0, 0, 0.5, 0.3))
-abline(h = 0, col = "red", lwd = 2, lty = 2)
+# Plot Residuals vs predicted
+ggplot(grapes, aes(x = predicted_brix, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red") +
+  labs(x = "Predicted Brix", y = "Residuals", title = "Residual Plot")
+
 ```
 The residuals show random scatter around zero but with no apparent pattern. This suggests the Gamma model with a log link is appropriate. However, the wide range of scatter indicates the model explains very little variation.
 
@@ -457,4 +535,12 @@ soil_moisture_check
 ```
 Based on the large p-value, there is no evidence that soil_moisture_percentage affects Brix in this dataset
 The confidence interval includes zero, which means the true effect could be positive, negative, or none at all.
+
+
+# Conclusion
+
+The Gamma regression model was able to retrieve the known parameters when tested.
+- Multicollinearity: Multicollinearity was not detected by the lack of strong correlations
+Independence: Predictors are independent 
+
 
